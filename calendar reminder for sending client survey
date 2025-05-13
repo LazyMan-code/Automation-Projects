@@ -1,0 +1,86 @@
+function onEdit(e) {
+  var sheet = e.source.getSheetByName("SubmitTest"); // Change to your sheet name
+  var range = e.range;
+  var column = range.getColumn();
+  var row = range.getRow();
+  var data = sheet.getDataRange().getValues();
+
+  // Find column indexes
+  var headers = data[0];
+  var progressIndex = headers.indexOf("Progress"); // 0-based index
+  var dateIndex = headers.indexOf("Date of Delivery"); // 0-based index
+
+  // Check if the edited cell is in the "Progress" or "Date of Delivery" column
+  if (column === progressIndex + 1 && e.value === "Delivered") {
+    createOrUpdateSurveyEvent(sheet, row);
+  } else if (column === dateIndex + 1) {
+    updateSurveyEvent(sheet, row);
+  }
+}
+
+function createOrUpdateSurveyEvent(sheet, row) {
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  var nameIndex = headers.indexOf("Full Name");
+  var progressIndex = headers.indexOf("Progress");
+  var dateIndex = headers.indexOf("Date of Delivery");
+
+  // Check if the required columns exist
+  if (nameIndex === -1 || progressIndex === -1 || dateIndex === -1) {
+    Logger.log("Required columns not found.");
+    return;
+  }
+
+  var fullName = data[row - 1][nameIndex];
+  var progress = data[row - 1][progressIndex];
+  var deliveryDate = data[row - 1][dateIndex];
+
+  // Check if the row has the necessary data
+  if (progress === "Delivered" && fullName && deliveryDate) {
+    var eventTitle = "Send Client Survey Form to " + fullName;
+    var eventDate = new Date(deliveryDate);
+    eventDate.setDate(eventDate.getDate() + 7); // 7 days after delivery
+
+    var calendar = CalendarApp.getDefaultCalendar();
+
+    // Check if an event ID already exists in the row
+    var eventIdIndex = headers.indexOf("Event ID"); // 0-based index
+    var statusIndex = headers.indexOf("Event Status"); // 0-based index
+
+    // If the "Event ID" or "Event Status" columns don't exist, create them
+    if (eventIdIndex === -1) {
+      eventIdIndex = headers.length;
+      sheet.getRange(1, eventIdIndex + 1).setValue("Event ID");
+    }
+    if (statusIndex === -1) {
+      statusIndex = headers.length + 1;
+      sheet.getRange(1, statusIndex + 1).setValue("Event Status");
+    }
+
+    var eventId = data[row - 1][eventIdIndex];
+
+    // Delete existing event if it exists
+    if (eventId) {
+      try {
+        var existingEvent = calendar.getEventById(eventId);
+        if (existingEvent) {
+          existingEvent.deleteEvent();
+        }
+      } catch (err) {
+        Logger.log("Event not found: " + eventId);
+      }
+    }
+
+    // Create new event
+    var event = calendar.createAllDayEvent(eventTitle, eventDate);
+
+    // Store event ID and status
+    sheet.getRange(row, eventIdIndex + 1).setValue(event.getId());
+    sheet.getRange(row, statusIndex + 1).setValue("Event Created");
+  }
+}
+
+function updateSurveyEvent(sheet, row) {
+  createOrUpdateSurveyEvent(sheet, row);
+}

@@ -1,1 +1,147 @@
+function sendWelcomeEmail(e) {
+  const targetSheetName = "Session Preparation Form"; // Replace with the name of your target sheet
 
+  if (!e) {
+    Logger.log("This function must be triggered by a form submission event.");
+    return;
+  }
+
+  const sheet = e.source.getActiveSheet();
+
+  // Check if the form submission is from the target sheet
+  if (sheet.getName() !== targetSheetName) {
+    return;
+  }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]; // Get column headers
+  const row = e.range.getRow(); // Get the row of new submission
+  const data = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0]; // Get data from the row
+
+  // Extract relevant data
+  const email = getColumnValue(headers, data, "Email Address");
+  const fullName = getColumnValue(headers, data, "Full Name");
+  const eventDateTime = getColumnValue(headers, data, "Date and Time of Event");
+  const preferredDate = getColumnValue(headers, data, "Preferred Date of Shoot");
+  const eventLocation = getColumnValue(headers, data, "Event Location");
+  const location = eventLocation || getColumnValue(headers, data, "Location");
+
+  // Determine the date and time
+  let date = "";
+  let time = "";
+  if (eventDateTime) {
+    const eventDateObj = new Date(eventDateTime);
+    date = eventDateObj.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    time = eventDateObj.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } else if (preferredDate) {
+    const preferredDateObj = new Date(preferredDate);
+    date = preferredDateObj.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    time = preferredDateObj.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }
+
+  // Use only the first name
+  const name = fullName ? fullName.split(" ")[0] : "Guest";
+
+  // Get brand logo from Google Drive
+  const brandLogoFileId = "1iOGL2wCxmSTHl4_8L2SGeLYg0J_IiGD0"; // Replace with your Drive file ID
+  const brandLogoUrl = getPublicUrl(brandLogoFileId);
+
+  // Email parameters
+  const subject = "Welcome to BeHappy Studiox!";
+  const width = 600; // Set email width
+  const studioAddress = "14b Ojoto Crescent, Trans Ekulu, Enugu, Nigeria"; // Replace with your studio's address
+  const socialIcons = `
+    <a href="https://instagram.com/behappystudiox" target="_blank" style="text-decoration: none;">
+      <img src="https://cdn-icons-png.flaticon.com/128/15713/15713420.png" alt="Instagram" style="width: 24px; margin: 0 10px; border: none;">
+    </a>
+    <a href="https://facebook.com/behappystudiox" target="_blank" style="text-decoration: none;">
+      <img src="https://cdn-icons-png.flaticon.com/128/733/733547.png" alt="Facebook" style="width: 24px; margin: 0 10px; border: none;">
+    </a>
+    <a href="https://youtube.com/@behappystudioxtv" target="_blank" style="text-decoration: none;">
+      <img src="https://cdn-icons-png.flaticon.com/128/174/174883.png" alt="YouTube" style="width: 24px; margin: 0 10px; border: none;">
+    </a>
+  `;
+
+  // Email body with customizable booking info styles
+  const body = `
+    <div style="width: ${width}px; margin: 0 auto; font-family: Arial, sans-serif; color: #333;">
+      <!-- Header -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${brandLogoUrl}" alt="BeHappy Studiiox" style="width: 100%; max-width: ${width}px;">
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 20px; line-height: 1.6;">
+        <p>Hi <strong>${name}</strong>,</p>
+        <p>Thank you so much for booking that session! At BeHappy Studiox, we are particular about quality service and ensuring you enjoy the experience with us.</p>
+
+        <!-- Booking Info -->
+        <div style="border-top: 1px solid #ddd; margin: 20px 0; padding: 10px 0;">
+          <p style="font-size: 25px; color: #555; font-style: italic;"><strong>Booking Info:</strong></p>
+          <p style="font-size: 14px; color: #444;"><strong>Date:</strong> ${date || "N/A"}</p>
+          <p style="font-size: 14px; color: #444;"><strong>Time:</strong> ${time || "N/A"}</p>
+          <p style="font-size: 14px; color: #444;"><strong>Location:</strong> ${location || "N/A"}</p>
+        </div>
+        <hr style="border: 1px solid #ddd; margin: 20px 0;">
+
+        <p>If you have any questions or need to make some adjustments to your session, don't hesitate to reach out through the following channels:</p>
+        <p><strong>Phone:</strong> 08149173754</p>
+        <p><strong>Instagram:</strong> <a href="https://instagram.com/behappystudiox" target="_blank">behappystudiox</a></p>
+
+        <p>We can't wait to make magic with you!</p>
+
+        <p>Warm regards,<br>The BeHappy Studiox Team</p>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align: center; padding: 20px; font-size: 12px; color: #888;">
+        <p>${studioAddress}</p>
+        <div style="margin-top: 10px;">
+          ${socialIcons}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Send email
+  GmailApp.sendEmail(email, subject, "", { htmlBody: body });
+}
+
+/**
+ * Helper function to get value from a column (handles multiple possible column names).
+ */
+function getColumnValue(headers, data, columnNames) {
+  if (!Array.isArray(columnNames)) columnNames = [columnNames];
+  for (let i = 0; i < headers.length; i++) {
+    if (columnNames.includes(headers[i])) {
+      return data[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Helper function to get a public URL of a Google Drive file.
+ */
+function getPublicUrl(fileId) {
+  const file = DriveApp.getFileById(fileId);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return `https://drive.google.com/uc?id=${fileId}`;
+}

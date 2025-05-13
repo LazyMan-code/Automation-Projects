@@ -1,0 +1,33 @@
+function myFuntion(e) {
+  var sheet = e.source.getActiveSheet();
+  var sourceSheetName = "Session Preparation Form"; // Change this to your source sheet name
+  var destinationSheetName = "Zap Sheets (Events)"; // Change this to your destination sheet name
+  var eventTypeColumn = "Event Type"; // Column to check
+
+  var sourceSheet = e.source.getSheetByName(sourceSheetName);
+  var destinationSheet = e.source.getSheetByName(destinationSheetName);
+
+  if (!sourceSheet || !destinationSheet) {
+    Logger.log("Error: One or both sheets not found.");
+    return;
+  }
+
+  var headers = sourceSheet.getDataRange().getValues()[0]; // Get header row
+  var columnIndex = headers.indexOf(eventTypeColumn);
+
+  if (columnIndex === -1) {
+    Logger.log("Error: Event Type column not found.");
+    return;
+  }
+
+  var lastRow = e.range.getRow();
+  var rowData = sourceSheet.getRange(lastRow, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  var eventTypeColumn = rowData[columnIndex];
+
+  if (eventTypeColumn) { // Runs only if "Event Type" is filled
+    destinationSheet.appendRow(rowData);
+    Logger.log("Row copied successfully.");
+  } else {
+    Logger.log("Skipping row: Event Type is empty.");
+  }
+}
